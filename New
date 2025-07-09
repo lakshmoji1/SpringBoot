@@ -1,0 +1,85 @@
+package com.example.listener;
+
+import jakarta.jms.ConnectionFactory;
+import jakarta.jms.Message;
+import jakarta.jms.TextMessage;
+import org.bson.types.ObjectId;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jms.listener.DefaultMessageListenerContainer;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
+
+@Service
+public class QueueListenerManager {
+
+    private final Map<String, DefaultMessageListenerContainer> containerMap = new ConcurrentHashMap<>();
+    private final Map<String, Long> lastProcessedMap = new ConcurrentHashMap<>();
+
+    @Autowired
+    private ConnectionFactory connectionFactory;
+
+    public void startListeners(List<String> queues) {
+        for (String queue : queues) {
+            if (!containerMap.containsKey(queue)) {
+                System.out.println("Starting listener for: " + queue);
+                registerListener(queue);
+            }
+        }
+    }
+
+    public void registerListener(String queueName) {
+        DefaultMessageListenerContainer container = new DefaultMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+        container.setDestinationName(queueName);
+        container.setConcurrentConsumers(1); // adjust if needed
+        container.setMaxConcurrentConsumers(5);
+        container.setMessageListener((Consumer<Message>) message -> {
+            lastProcessedMap.put(queueName, System.currentTimeMillis());
+            try {
+                if (message instanceof TextMessage textMessage) {
+                    String objectId = textMessage.getText();
+                    if (ObjectId.isValid(objectId)) {
+                        System.out.printf("[%s] Received MongoDB ObjectId: %s%n", queueName, objectId);
+                        // TODO: Fetch MongoDB document using objectId
+                    } else {
+                        System.err.printf("[%s] Invalid ObjectId: %s%n", queueName, objectId);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+        container.initialize();
+        container.start();
+
+        containerMap.put(queueName, container);
+        lastProcessedMap.put(queueName, System.currentTimeMillis());
+
+        rebalanceAllExcept(queueName);
+    }
+
+    public void rebalanceAllExcept(String excludeQueue) {
+        System.out.println("Rebalancing all queues (excluding " + excludeQueue + ")...");
+        containerMap.forEach((queueName, container) -> {
+            if (!queueName.equals(excludeQueue)) {
+                try {
+                    System.out.println("Rebalancing queue: " + queueName);
+                    container.stop();
+                    Thread.sleep(2000);
+                    container.start();
+                    System.out.println("Restarted queue: " + queueName);
+                } catch (Exception e) {
+                    System.err.println("Failed to rebalance " + queueName + ": " + e.getMessage());
+                }
+            }
+        });
+    }
+
+    public Map<String, DefaultMessageListenerContainer> getAllContainers() {
+        return containerMap;
+    }
+}
