@@ -19,3 +19,11 @@ public void resetAllGroups() {
     ResponseEntity<String> response = restTemplate.postForEntity(jolokiaUrl, request, String.class);
     System.out.println(response.getBody());
 }
+
+
+sample payload
+{
+  "type": "exec",
+  "mbean": "org.apache.activemq.artemis:broker=\"<BROKER_NAME>\",component=addresses,address=\"<QUEUE_NAME>\",subcomponent=queues,routing-type=\"anycast\",queue=\"<QUEUE_NAME>\"",
+  "operation": "resetAllGroups"
+}
