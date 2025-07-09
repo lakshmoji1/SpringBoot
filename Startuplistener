@@ -1,0 +1,26 @@
+package com.example;
+
+import com.example.listener.QueueListenerManager;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.event.EventListener;
+import org.springframework.core.env.Environment;
+
+import java.util.List;
+
+@Configuration
+public class StartupListener {
+
+    @Autowired
+    private QueueListenerManager queueManager;
+
+    @Autowired
+    private Environment env;
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void onStartup() {
+        List<String> queues = List.of(env.getProperty("queue.names", "").split(","));
+        queueManager.startListeners(queues.stream().map(String::trim).toList());
+    }
+}
