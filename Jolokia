@@ -1,0 +1,49 @@
+package com.example.rebalance;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.Map;
+
+@Service
+public class ArtemisJolokiaRebalancer {
+
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    @Value("${artemis.jolokia.url}")
+    private String jolokiaUrl; // e.g. http://broker-host:8778/jolokia
+
+    public boolean resetAllGroups(String queueName, String brokerName) {
+        try {
+            String mbean = String.format(
+                "org.apache.activemq.artemis:broker=\"%s\",component=addresses,address=\"%s\",subcomponent=queues,routing-type=\"anycast\",queue=\"%s\"",
+                brokerName, queueName, queueName);
+
+            Map<String, Object> requestBody = Map.of(
+                "type", "exec",
+                "mbean", mbean,
+                "operation", "resetAllGroups"
+            );
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+            ResponseEntity<Map> response = restTemplate.postForEntity(jolokiaUrl, entity, Map.class);
+
+            if (response.getStatusCode() == HttpStatus.OK && "ok".equals(response.getBody().get("status").toString())) {
+                System.out.printf("✅ Successfully triggered resetAllGroups for queue: %s%n", queueName);
+                return true;
+            } else {
+                System.err.printf("❌ Jolokia call failed: %s%n", response.getBody());
+                return false;
+            }
+
+        } catch (Exception e) {
+            System.err.printf("❌ Error calling Jolokia: %s%n", e.getMessage());
+            return false;
+        }
+    }
+}
