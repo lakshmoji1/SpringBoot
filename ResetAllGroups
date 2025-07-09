@@ -1,0 +1,21 @@
+import org.springframework.http.*;
+import org.springframework.web.client.RestTemplate;
+import java.util.*;
+
+public void resetAllGroups() {
+    String jolokiaUrl = "http://<broker-host>:8161/console/jolokia/";
+    Map<String, Object> payload = new HashMap<>();
+    payload.put("type", "exec");
+    payload.put("mbean", "org.apache.activemq.artemis:broker=\"<BROKER_NAME>\",component=addresses,address=\"<QUEUE_NAME>\",subcomponent=queues,routing-type=\"anycast\",queue=\"<QUEUE_NAME>\"");
+    payload.put("operation", "resetAllGroups");
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.setBasicAuth("admin", "admin"); // adjust credentials
+
+    HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+    RestTemplate restTemplate = new RestTemplate();
+
+    ResponseEntity<String> response = restTemplate.postForEntity(jolokiaUrl, request, String.class);
+    System.out.println(response.getBody());
+}
