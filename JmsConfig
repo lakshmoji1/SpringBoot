@@ -1,0 +1,36 @@
+package com.example.config;
+
+import jakarta.jms.ConnectionFactory;
+import org.apache.activemq.ActiveMQConnectionFactory;
+import org.messaginghub.pooled.jms.JmsPoolConnectionFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
+
+@Configuration
+public class JmsConfig {
+
+    @Value("${spring.activemq.broker-url}")
+    private String brokerUrl;
+
+    @Bean
+    public ConnectionFactory pooledConnectionFactory() {
+        ActiveMQConnectionFactory amqFactory = new ActiveMQConnectionFactory(brokerUrl);
+        amqFactory.setTrustAllPackages(true);
+
+        JmsPoolConnectionFactory poolFactory = new JmsPoolConnectionFactory();
+        poolFactory.setConnectionFactory(amqFactory);
+        poolFactory.setMaxConnections(10);
+        return poolFactory;
+    }
+
+    @Bean
+    public DefaultJmsListenerContainerFactory jmsListenerContainerFactory(ConnectionFactory pooledConnectionFactory) {
+        DefaultJmsListenerContainerFactory factory = new DefaultJmsListenerContainerFactory();
+        factory.setConnectionFactory(pooledConnectionFactory);
+        factory.setConcurrency("1-5");
+        factory.setSessionTransacted(false);
+        return factory;
+    }
+}
