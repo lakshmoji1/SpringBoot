@@ -1,0 +1,53 @@
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
+import org.json.JSONObject;
+
+public class StoreAllRates {
+    // HashMaps to store rates for GBP and EUR
+    private static Map<String, Double> gbpRates = new HashMap<>();
+    private static Map<String, Double> eurRates = new HashMap<>();
+
+    public static void main(String[] args) {
+        try {
+            // Store rates for GBP
+            gbpRates = getRatesForBase("GBP");
+            // Store rates for EUR
+            eurRates = getRatesForBase("EUR");
+
+            // Example: print rates
+            System.out.println("Rates with base GBP: " + gbpRates);
+            System.out.println("Rates with base EUR: " + eurRates);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static Map<String, Double> getRatesForBase(String base) throws Exception {
+        String apiUrl = "https://api.frankfurter.app/latest?base=" + base;
+        URL url = new URL(apiUrl);
+
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+        StringBuilder resp = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            resp.append(line);
+        }
+        reader.close();
+
+        JSONObject json = new JSONObject(resp.toString());
+        JSONObject ratesJson = json.getJSONObject("rates");
+
+        Map<String, Double> rates = new HashMap<>();
+        for (String currency : ratesJson.keySet()) {
+            rates.put(currency, ratesJson.getDouble(currency));
+        }
+        return rates;
+    }
+}
