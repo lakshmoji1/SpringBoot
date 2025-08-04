@@ -1,0 +1,122 @@
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import org.json.JSONObject;
+
+import com.mongodb.MongoClient;
+import com.mongodb.MongoClientURI;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import org.bson.Document;
+
+public class CurrencyRatesMongoDB {
+
+    // MongoDB config
+    private static final String MONGO_URI = "mongodb://localhost:27017";
+    private static final String DATABASE_NAME = "currencyDB";
+    private static final String COLLECTION_NAME = "conversionRates";
+
+    private MongoClient mongoClient;
+    private MongoDatabase database;
+    private MongoCollection<Document> collection;
+
+    public CurrencyRatesMongoDB() {
+        mongoClient = new MongoClient(new MongoClientURI(MONGO_URI));
+        database = mongoClient.getDatabase(DATABASE_NAME);
+        collection = database.getCollection(COLLECTION_NAME);
+    }
+
+    public void saveConversionRate(String base, String target, double rate) {
+        Document query = new Document("baseCurrency", base)
+                             .append("targetCurrency", target);
+
+        Document update = new Document("$set", new Document("conversionRate", rate));
+
+        collection.updateOne(query, update, new com.mongodb.client.model.UpdateOptions().upsert(true));
+    }
+
+    public void close() {
+        mongoClient.close();
+    }
+
+    // HTTP GET request to fetch JSON
+    public static JSONObject fetchJSON(String urlStr) throws Exception {
+        URL url = new URL(urlStr);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+
+        int responseCode = connection.getResponseCode();
+        if (responseCode != 200) {
+            throw new RuntimeException("HttpResponseCode: " + responseCode);
+        }
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        StringBuilder jsonResponse = new StringBuilder();
+        String inputLine;
+
+        while ((inputLine = in.readLine()) != null) {
+            jsonResponse.append(inputLine);
+        }
+        in.close();
+
+        return new JSONObject(jsonResponse.toString());
+    }
+
+    // Get supported currencies
+    public static String[] getAllCurrencies() throws Exception {
+        String url = "https://api.exchangerate.host/symbols";
+        JSONObject json = fetchJSON(url);
+        JSONObject symbols = json.getJSONObject("symbols");
+        Iterator<String> keys = symbols.keys();
+        String[] currencies = new String[symbols.length()];
+        int i = 0;
+        while (keys.hasNext()) {
+            currencies[i++] = keys.next();
+        }
+        return currencies;
+    }
+
+    // Get rates and save to MongoDB
+    public void fetchAndStoreConversionRates() {
+        try {
+            String[] currencies = getAllCurrencies();
+            String targets = "GBP,EUR";
+
+            for (String currency : currencies) {
+                if (currency.equals("GBP") || currency.equals("EUR")) {
+                    continue;
+                }
+                String url = String.format("https://api.exchangerate.host/latest?base=%s&symbols=%s", currency, targets);
+                JSONObject rateJson = fetchJSON(url);
+
+                if (!rateJson.getBoolean("success")) {
+                    System.err.println("Failed to fetch rates for " + currency);
+                    continue;
+                }
+
+                JSONObject rates = rateJson.getJSONObject("rates");
+
+                double gbpRate = rates.getDouble("GBP");
+                double eurRate = rates.getDouble("EUR");
+
+                // Persist to MongoDB
+                saveConversionRate(currency, "GBP", gbpRate);
+                saveConversionRate(currency, "EUR", eurRate);
+
+                System.out.printf("Saved %s to GBP: %.4f, EUR: %.4f\n", currency, gbpRate, eurRate);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) {
+        CurrencyRatesMongoDB app = new CurrencyRatesMongoDB();
+        app.fetchAndStoreConversionRates();
+        app.close();
+    }
+}
