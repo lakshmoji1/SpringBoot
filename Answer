@@ -1,0 +1,40 @@
+import java.util.*;
+
+public class Solution {
+    public static int minCost(int n, int m, String s, List<Integer> open, List<Integer> close) {
+        int[][] dp = new int[n+1][n+1];
+        for (int[] row : dp)
+            Arrays.fill(row, Integer.MAX_VALUE);
+        dp[0][0] = 0;
+
+        for (int i = 0; i < n; i++) {
+            for (int bal = 0; bal <= n; bal++) {
+                if (dp[i][bal] == Integer.MAX_VALUE) continue;
+                if (s.charAt(i) == '(') {
+                    dp[i+1][bal+1] = Math.min(dp[i+1][bal+1], dp[i][bal]);
+                } else if (s.charAt(i) == ')') {
+                    if (bal > 0)
+                        dp[i+1][bal-1] = Math.min(dp[i+1][bal-1], dp[i][bal]);
+                } else { 
+                    dp[i+1][bal+1] = Math.min(dp[i+1][bal+1], dp[i][bal] + open.get(i));
+                    
+                    if (bal > 0)
+                        dp[i+1][bal-1] = Math.min(dp[i+1][bal-1], dp[i][bal] + close.get(i));
+                }
+            }
+        }
+        return dp[n][0] == Integer.MAX_VALUE ? -1 : dp[n][0];
+    }
+
+    public static void main(String[] args) {
+        Scanner scan = new Scanner(System.in);
+        int n = scan.nextInt();
+        int m = scan.nextInt();
+        String s = scan.next();
+        List<Integer> open = new ArrayList<>();
+        for (int i = 0; i < m; i++) open.add(scan.nextInt());
+        List<Integer> close = new ArrayList<>();
+        for (int i = 0; i < m; i++) close.add(scan.nextInt());
+        System.out.println(minCost(n, m, s, open, close));
+    }
+}
