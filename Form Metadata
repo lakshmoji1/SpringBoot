@@ -1,0 +1,35 @@
+CREATE TABLE REFERENCE_TYPE_REGISTRY (
+    REF_TYPE        VARCHAR2(50)  PRIMARY KEY,  -- 'CURRENCY', 'BANK', 'COUNTRY'
+    SOURCE_TYPE     VARCHAR2(20)  NOT NULL,      -- 'DB', 'CACHE', 'EXTERNAL_API'
+    
+    -- if SOURCE_TYPE = 'DB'
+    DB_TABLE_NAME   VARCHAR2(100),              -- 'REFERENCE_DATA'
+    DB_FILTER_COL   VARCHAR2(100),              -- 'TYPE'
+    DB_FILTER_VAL   VARCHAR2(100),              -- 'CURRENCY'
+    
+    -- if SOURCE_TYPE = 'EXTERNAL_API'
+    API_URL         VARCHAR2(500),              -- 'https://api.exchangerate.com/v1/currencies'
+    API_METHOD      VARCHAR2(10),               -- 'GET'
+    API_HEADERS     CLOB,                       -- JSON: {"Authorization": "Bearer ${FX_API_KEY}"}
+    API_PARAMS      CLOB,                       -- JSON: {"active": true}
+    RESPONSE_PATH   VARCHAR2(200),              -- 'data.currencies' (where the list lives)
+    
+    -- if SOURCE_TYPE = 'CACHE'
+    CACHE_KEY       VARCHAR2(200),              -- 'ref:currency:all'
+    CACHE_TTL_SEC   NUMBER,                     -- 3600
+    FALLBACK_TYPE   VARCHAR2(20),               -- 'DB' (if cache miss, fall back to)
+
+    LABEL_KEY       VARCHAR2(100) DEFAULT 'label',
+    VALUE_KEY       VARCHAR2(100) DEFAULT 'value',
+    DESC_KEY        VARCHAR2(100) DEFAULT 'description',
+    IS_ACTIVE       NUMBER(1) DEFAULT 1,
+    UPDATED_AT      TIMESTAMP DEFAULT SYSTIMESTAMP
+);
+
+
+
+REF_TYPE   SOURCE_TYPE   DB_TABLE       API_URL                              CACHE_KEY
+---------  -----------   ----------     --------                             ---------
+CURRENCY   DB            REFERENCE_DATA  null                                null
+COUNTRY    CACHE         null            null                                ref:country:all  (fallback: DB)
+BANK       EXTERNAL_API  null            https://api.bankregistry.com/v1/...  null
