@@ -1,111 +1,391 @@
+You are a Principal Software Engineer and Enterprise Architect.
+
+Design and implement a production-ready configurable Manual Payments Form Submission platform using Java 17 + Spring Boot 3.3.1 + Oracle DB.
+
+provide design only first.
+
+The solution must follow:
+
+* SOLID principles
+* Clean Architecture / Hexagonal Architecture
+* Domain Driven Design where applicable
+* Open Closed Principle for extensibility
+* Strategy Pattern / Factory Pattern where appropriate
+* Production-grade coding standards
+* Layered separation of concerns
+* Enterprise exception handling
+* Observability and logging
+* DTO validation
+* Scalability and maintainability
+
+===========================================================
+BUSINESS REQUIREMENT
+====================
+
+User accesses a Manual Payments screen.
+
+The form is fully metadata-driven.
+
+Sections, fields, validations, dropdowns, dependencies, readonly rules, and dynamic field population should work without code changes.
+
+Metadata comes from backend.
+
+Example metadata:
+
+[
 {
-  "formId": "wire-transfer-form",
-  "version": 1,
-  "sections": [
-    {
-      "sectionId": "core-wire-input-details",
-      "sectionName": "Core Wire Input Details",
-      "layout": {
-        "width": "full"
-      },
-      "fields": [
-        {
-          "fieldId": "amount",
-          "fieldName": "amount",
-          "displayName": "Amount",
-          "dataType": "number",
-          "inputType": "input",
-          "defaultValue": null,
-          "validators": [
-            {
-              "type": "required"
-            },
-            {
-              "type": "min",
-              "value": 1
-            }
-          ]
-        },
-        {
-          "fieldId": "currency",
-          "fieldName": "currency",
-          "displayName": "Currency",
-          "dataType": "text",
-          "inputType": "dropdown",
+"sectionName": "Core Wire Input Details",
+"fields": [
+{
+"fieldName": "amount",
+"displayName": "Amount",
+"dataType": "number",
+"inputType": "input",
+"validators": {
+"required": "true",
+"readOnly": "false"
+}
+},
+{
+"fieldName": "currency",
+"displayName": "Currency",
+"dataType": "text",
+"inputType": "dropdown",
+"validators": {
+"required": "true",
+"readOnly": "false"
+}
+}
+]
+},
+{
+"sectionName": "Account Details",
+"fields": [
+{
+"fieldName": "counterPartyId",
+"displayName": "Counter Party ID",
+"dataType": "text",
+"inputType": "input",
+"validators": {
+"required": "true",
+"readOnly": "false"
+}
+},
+{
+"fieldName": "counterPartyName",
+"displayName": "Counter Party Name",
+"dataType": "text",
+"inputType": "input",
+"validators": {
+"required": "true",
+"readOnly": "true"
+}
+}
+]
+}
+]
 
-          "dataSource": {
-            "type": "dynamic",
-            "sourceKey": "currency-master"
-          },
+===========================================================
+DYNAMIC FIELD REQUIREMENTS
+==========================
 
-          "validators": [
-            {
-              "type": "required"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "sectionId": "account-details",
-      "sectionName": "Account Details",
-      "layout": {
-        "width": "half"
-      },
-      "fields": [
-        {
-          "fieldId": "counterPartyId",
-          "fieldName": "counterPartyId",
-          "displayName": "Counter Party ID",
-          "dataType": "text",
-          "inputType": "input",
+1. DROPDOWN VALUES FROM DATABASE
 
-          "validators": [
-            {
-              "type": "required"
-            }
-          ],
+---
 
-          "events": [
-            {
-              "trigger": "onBlur",
+Example:
 
-              "action": "validate",
+* Currency dropdown values come from Oracle DB table.
+* Whenever a new row is inserted into DB table, dropdown should automatically reflect latest values without code change.
 
-              "actionKey": "validate-counterparty"
-            },
-            {
-              "trigger": "onChange",
+2. DEPENDENT FIELD POPULATION FROM DATABASE
 
-              "action": "populate",
+---
 
-              "targetField": "counterPartyName",
+Example:
 
-              "actionKey": "fetch-counterparty-name"
-            }
-          ]
-        },
-        {
-          "fieldId": "counterPartyName",
-          "fieldName": "counterPartyName",
-          "displayName": "Counter Party Name",
-          "dataType": "text",
-          "inputType": "input",
+* User selects State = Andhra Pradesh
+* Capital field auto populates as Amaravathi
 
-          "attributes": {
-            "readOnly": true
-          },
+All such mappings should be configurable.
 
-          "validators": [
-            {
-              "type": "required"
-            }
-          ]
-        }
-      ]
-    }
-  ]
+Example request:
+
+{
+"formData": {
+"state": "Andhra Pradesh"
+}
 }
 
+Response:
 
-https://chatgpt.com/share/6a041467-e464-8324-8903-95b5dafa841d
+{
+"formData": {
+"state": "Andhra Pradesh",
+"capital": "Amaravathi"
+},
+"errors": []
+}
+
+3. DEPENDENT FIELD POPULATION FROM EXTERNAL API
+
+---
+
+Example:
+
+* User selects currency = USD
+* External currency conversion API is called
+* INR equivalent is auto populated
+
+Request:
+
+{
+"formData": {
+"currency": "USD"
+}
+}
+
+Positive response:
+
+{
+"formData": {
+"currency": "USD",
+"INREquivalent": 116
+},
+"errors": []
+}
+
+Negative response:
+
+{
+"formData": {
+"currency": "USD"
+},
+"errors": [
+{
+"field": "INREquivalent",
+"message": "Currency convertor API is down"
+}
+]
+}
+
+4. COUNTERPARTY VALIDATION
+
+---
+
+* User enters CounterParty ID
+* Backend calls external API
+* If valid:
+
+  * populate CounterParty Name
+* If invalid:
+
+  * return validation error
+
+===========================================================
+IMPORTANT DESIGN REQUIREMENTS
+=============================
+
+The architecture MUST support:
+
+* DB-based datasource
+* External API datasource
+* Future extensibility for:
+
+  * ElasticSearch
+  * Internal microservices
+
+WITHOUT changing core orchestration logic.
+
+===========================================================
+EXPECTED OUTPUT
+===============
+
+Provide COMPLETE implementation and explanation for:
+
+1. HIGH LEVEL ARCHITECTURE
+
+* Clean architecture diagram
+* Module separation
+* Request flow
+* Extensibility model
+
+2. DATABASE DESIGN
+   Provide Oracle schema for:
+
+* form_definition
+* section_definition
+* field_definition
+* field_dependency_definition
+* datasource_definition
+* datasource_mapping
+* validation_definition
+* api_configuration
+* query_configuration
+
+Explain why each table exists.
+
+3. FIELD DEPENDENCY ENGINE
+   Design a generic dependency resolution engine.
+
+It should:
+
+* detect dependent fields
+* invoke proper datasource strategy
+* merge response
+* support cascading dependencies
+* avoid circular dependency
+* support async execution where possible
+
+4. DESIGN PATTERNS
+   Show where and why to use:
+
+* Strategy Pattern
+* Factory Pattern
+* Template Method
+* Chain of Responsibility
+* Specification Pattern
+* Builder Pattern
+
+5. BACKEND IMPLEMENTATION
+   Provide COMPLETE Java Spring Boot code for:
+
+* Controllers
+* DTOs
+* Entities
+* Repositories
+* Services
+* Dependency Engine
+* Strategy Interfaces
+* DB Strategy
+* External API Strategy
+* Factory Classes
+* Validation Engine
+* Exception Handling
+* API Clients
+* Config classes
+* Interceptors
+* Logging
+* Observability
+
+6. DYNAMIC QUERY EXECUTION
+   Explain how DB datasource works.
+
+Example:
+
+* state dropdown values fetched dynamically
+* capital auto populated dynamically
+
+Need:
+
+* secure query execution
+* parameter binding
+* configurable WHERE clause
+* prevention of SQL injection
+* reusable query templates
+
+7. EXTERNAL API EXECUTION
+   Explain:
+
+* dynamic API configuration
+* URL configuration
+* request template
+* headers
+* authentication
+* timeout handling
+* retries
+* circuit breaker
+* fallback mechanism
+
+Use:
+
+* Spring WebClient
+* Resilience4j
+
+8. METADATA DESIGN
+   Provide final metadata JSON structure supporting:
+
+* datasource
+* dependencies
+* validations
+* readonly rules
+* visibility rules
+* API mappings
+* DB mappings
+
+9. END-TO-END FLOW
+   Explain complete runtime flow:
+
+Step by step:
+
+* metadata load
+* dropdown fetch
+* user input
+* dependency trigger
+* strategy resolution
+* datasource execution
+* response mapping
+* UI update
+
+10. FRONTEND CONTRACT
+    Provide REST API contracts for:
+
+* get metadata
+* get dropdown values
+* resolve dependencies
+* validate field
+* submit form
+
+11. ERROR HANDLING
+    Need enterprise-grade error model:
+
+* field-level errors
+* global errors
+* partial success
+* downstream failure handling
+
+12. PERFORMANCE
+    Explain:
+
+* caching strategy
+* metadata cache
+* dropdown cache
+* async execution
+* bulk dependency resolution
+* DB indexing
+
+16. PROVIDE COMPLETE FOLDER STRUCTURE
+    Need enterprise-grade package structure.
+
+17. PROVIDE SAMPLE WORKING IMPLEMENTATION
+    Include:
+
+* sample metadata
+* sample DB rows
+* sample API configs
+* sample requests/responses
+
+18. MOST IMPORTANT
+    The implementation MUST be:
+
+* generic
+* extensible
+* configurable
+* low coupling
+* high cohesion
+* production-grade
+* easy to onboard new datasource types
+
+Do NOT provide superficial explanations.
+
+Provide:
+
+* real enterprise-level implementation
+* actual code
+* actual schema
+* actual patterns
+* actual runtime flow
+* actual extensibility model
+
+Assume this system will be used in a banking/financial enterprise environment with high scale and audit requirements.
+
